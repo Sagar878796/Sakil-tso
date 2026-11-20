@@ -15,36 +15,24 @@ with urllib.request.urlopen(req, timeout=30) as response:
 if isinstance(data, dict):
     data = data.get("channels", data.get("data", []))
 
-if not isinstance(data, list):
-    raise ValueError("Unexpected JSON format")
-
-lines = ["#EXTM3U"]
-count = 0
+output = ["#EXTM3U"]
 
 for ch in data:
-    if not isinstance(ch, dict):
-        continue
-
-    # Do not package DRM credentials
-    if ch.get("all_keys") or ch.get("cookie"):
-        continue
-
     name = ch.get("name", "Unknown")
-    url = ch.get("url", "")
     logo = ch.get("logo", "")
     category = ch.get("category", "Other")
+    url = ch.get("url", "")
 
-    if not url.startswith("https://"):
+    if not url:
         continue
 
-    lines.append(
+    output.append(
         f'#EXTINF:-1 tvg-logo="{logo}" '
         f'group-title="{category}",{name}'
     )
-    lines.append(url)
-    count += 1
+    output.append(url)
 
 with open("playlist.m3u", "w", encoding="utf-8") as f:
-    f.write("\n".join(lines) + "\n")
+    f.write("\n".join(output) + "\n")
 
-print(f"Conversion completed: {count} channels")
+print(f"Converted {len(output)//2} entries")
