@@ -9,30 +9,42 @@ req = urllib.request.Request(
     headers={"User-Agent": "Mozilla/5.0"}
 )
 
-with urllib.request.urlopen(req, timeout=30) as response:
-    data = json.loads(response.read().decode("utf-8"))
+with urllib.request.urlopen(req, timeout=30) as r:
+    data = json.loads(r.read().decode("utf-8"))
 
 if isinstance(data, dict):
     data = data.get("channels", data.get("data", []))
 
-output = ["#EXTM3U"]
+if not isinstance(data, list):
+    raise ValueError("Invalid JSON format")
+
+lines = ["#EXTM3U"]
+count = 0
 
 for ch in data:
-    name = ch.get("name", "Unknown")
-    logo = ch.get("logo", "")
-    category = ch.get("category", "Other")
-    url = ch.get("url", "")
-
-    if not url:
+    if not isinstance(ch, dict):
         continue
 
-    output.append(
-        f'#EXTINF:-1 tvg-logo="{logo}" '
-        f'group-title="{category}",{name}'
+    name = str(ch.get("name", "Unknown"))
+    logo = str(ch.get("logo", ""))
+    category = str(ch.get("category", "Other"))
+    url = str(ch.get("url", ""))
+
+    if not url.startswith("https://"):
+        continue
+
+    # Skip protected entries
+    if ch.get("all_keys") or ch.get("cookie"):
+        continue
+
+    lines.append(
+        f'#EXTINF:-1 tvg-id="{ch.get("id", "")}" '
+        f'tvg-logo="{logo}" group-title="{category}",{name}'
     )
-    output.append(url)
+    lines.append(url)
+    count += 1
 
 with open("playlist.m3u", "w", encoding="utf-8") as f:
-    f.write("\n".join(output) + "\n")
+    f.write("\n".join(lines) + "\n")
 
-print(f"Converted {len(output)//2} entries")
+print(f"Successfully converted {count} channels")
