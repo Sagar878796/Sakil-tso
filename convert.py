@@ -2,37 +2,49 @@
 import json
 import urllib.request
 
-API = "https://lemajekaat.streamxlive.workers.dev"
+SOURCE = "https://lemajekaat.streamxlive.workers.dev"
 
 req = urllib.request.Request(
-    API,
+    SOURCE,
     headers={"User-Agent": "Mozilla/5.0"}
 )
 
-with urllib.request.urlopen(req) as response:
+with urllib.request.urlopen(req, timeout=30) as response:
     data = json.loads(response.read().decode("utf-8"))
 
 if isinstance(data, dict):
     data = data.get("channels", data.get("data", []))
 
-m3u = ["#EXTM3U"]
+if not isinstance(data, list):
+    raise ValueError("Unexpected JSON format")
+
+lines = ["#EXTM3U"]
+count = 0
 
 for ch in data:
+    if not isinstance(ch, dict):
+        continue
+
+    # Do not package DRM credentials
+    if ch.get("all_keys") or ch.get("cookie"):
+        continue
+
     name = ch.get("name", "Unknown")
     url = ch.get("url", "")
     logo = ch.get("logo", "")
     category = ch.get("category", "Other")
 
-    if not url:
+    if not url.startswith("https://"):
         continue
 
-    m3u.append(
+    lines.append(
         f'#EXTINF:-1 tvg-logo="{logo}" '
         f'group-title="{category}",{name}'
     )
-    m3u.append(url)
+    lines.append(url)
+    count += 1
 
 with open("playlist.m3u", "w", encoding="utf-8") as f:
-    f.write("\n".join(m3u))
+    f.write("\n".join(lines) + "\n")
 
-print("M3U playlist created successfully!")
+print(f"Conversion completed: {count} channels")
